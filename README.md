@@ -3,9 +3,15 @@
 Control an Elgato Key Light Air from the Omarchy 4 bar: an icon that reads at
 a glance, and a panel with power, brightness, and color temperature.
 
-| The panel | Device details expanded |
-| --- | --- |
-| ![The control panel, anchored to its bar icon](docs/panel.png) | ![The panel with the device details section expanded](docs/panel-details.png) |
+![The control panel, anchored to its bar icon](docs/panel.png)
+
+<details>
+<summary>With the device details section expanded</summary>
+<br>
+
+![The panel with the device details section expanded](docs/panel-details.png)
+
+</details>
 
 ## What it does
 
