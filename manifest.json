@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "fgonzal.keylight-air",
+  "name": "Key Light Air",
+  "version": "0.1.0",
+  "author": "fgonzal",
+  "license": "MIT",
+  "description": "Control an Elgato Key Light Air from the Omarchy bar: power, brightness, and color temperature.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "Key Light Air",
+    "description": "Toggle the light and adjust brightness and color temperature from a panel.",
+    "category": "System",
+    "aliases": ["elgato", "keylight", "light"],
+    "defaultSection": "right",
+    "allowMultiple": false,
+    "defaults": {
+      "host": "",
+      "pollIntervalSec": 30
+    },
+    "schema": [
+      {
+        "key": "host",
+        "type": "string",
+        "label": "Light address",
+        "defaultValue": "",
+        "description": "Optional. IP address of the Key Light Air (e.g. 192.168.1.4) to skip mDNS discovery. Leave empty to find the light automatically."
+      },
+      {
+        "key": "pollIntervalSec",
+        "type": "integer",
+        "label": "Background refresh (seconds)",
+        "min": 5,
+        "max": 3600,
+        "step": 5,
+        "defaultValue": 30,
+        "description": "How often to re-read light state while the panel is closed, so the bar icon stays truthful."
+      }
+    ]
+  }
+}
