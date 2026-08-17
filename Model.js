@@ -59,6 +59,22 @@ function lightsPayload(patch) {
   return JSON.stringify({ lights: [light] })
 }
 
+// Parse the /elgato/accessory-info response. Returns null when the payload
+// is not the expected shape.
+function parseAccessoryInfo(text) {
+  var parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch (e) {
+    return null
+  }
+  if (!parsed || parsed.productName === undefined) return null
+  return {
+    displayName: String(parsed.displayName || ""),
+    productName: String(parsed.productName || "")
+  }
+}
+
 // Decode avahi's \NNN decimal escapes ("Elgato\032Key\032Light\032Air").
 function decodeAvahiName(name) {
   return String(name || "").replace(/\\(\d{3})/g, function(_, code) {

@@ -16,6 +16,10 @@ a glance, and a panel with power, brightness, and color temperature.
   temperature slider shown in Kelvin (2900–7000K) — the mired units the
   Elgato API actually speaks stay internal. Enter toggles the light, Escape
   closes.
+- **Rename the light** by clicking its name in the panel. The name is written
+  to the light's own flash (`accessory-info`), so it survives reboots, follows
+  the light to another machine, and shows identically in Elgato's official
+  apps. An empty name restores the factory mDNS name.
 - **mDNS discovery** via avahi finds the light automatically; a static IP can
   be pinned in the widget settings to skip discovery. If the light drops off
   the network, the panel offers a rescan and the background poll self-heals
