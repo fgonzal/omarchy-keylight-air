@@ -3,7 +3,9 @@
 Control an Elgato Key Light Air from the Omarchy 4 bar: an icon that reads at
 a glance, and a panel with power, brightness, and color temperature.
 
-![The control panel, anchored to its bar icon](docs/panel.png)
+| The panel | Device details expanded |
+| --- | --- |
+| ![The control panel, anchored to its bar icon](docs/panel.png) | ![The panel with the device details section expanded](docs/panel-details.png) |
 
 ## What it does
 
@@ -24,6 +26,10 @@ a glance, and a panel with power, brightness, and color temperature.
   be pinned in the widget settings to skip discovery. If the light drops off
   the network, the panel offers a rescan and the background poll self-heals
   when it comes back.
+- **Wi-Fi signal at a glance** in the footer (strength glyph + dBm) — a weak
+  reading is the usual explanation for laggy control. Clicking the footer
+  expands a **device details** section: firmware, serial, MAC, and the
+  network the light is on.
 - Themed by the active Omarchy theme, like the first-party widgets.
 
 ## Install
