@@ -153,6 +153,12 @@ Panel {
 
   property bool editingName: false
   property bool savingName: false
+  property int wifiRssi: 0
+
+  // Full accessory-info payload for the collapsed device-details section.
+  // Session-only UI state: reopening the shell starts collapsed again.
+  property var deviceInfo: null
+  property bool showDetails: false
 
   function fetchInfo() {
     if (!host || infoProc.running) return
@@ -242,7 +248,11 @@ Panel {
       waitForEnd: true
       onStreamFinished: {
         var info = Model.parseAccessoryInfo(text)
-        if (info) root.displayName = info.displayName
+        if (info) {
+          root.displayName = info.displayName
+          root.wifiRssi = info.rssi
+          root.deviceInfo = info
+        }
       }
     }
   }
@@ -306,7 +316,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(340))
+    contentWidth: panel.fittedContentWidth(Style.space(380))
     contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
     PanelKeyCatcher {
@@ -543,15 +553,77 @@ Panel {
           }
         }
 
-        // ---- Footer: where the light was found ----
+        // ---- Device details (collapsed behind the footer) ----
+        Column {
+          width: parent.width
+          spacing: Style.space(4)
+          visible: root.showDetails && root.deviceInfo !== null
+
+          PanelSeparator {
+            foreground: root.barForeground
+          }
+
+          Repeater {
+            model: root.deviceInfo ? [
+              { label: "FIRMWARE", value: root.deviceInfo.firmware },
+              { label: "SERIAL", value: root.deviceInfo.serialNumber },
+              { label: "MAC", value: root.deviceInfo.macAddress },
+              { label: "WI-FI", value: root.deviceInfo.ssid
+                  + (root.deviceInfo.frequencyMHz
+                     ? " · " + (root.deviceInfo.frequencyMHz / 1000) + "GHz" : "") }
+            ] : []
+
+            Item {
+              required property var modelData
+              width: parent.width
+              implicitHeight: detailValue.implicitHeight
+
+              Text {
+                text: modelData.label
+                color: Qt.darker(root.barForeground, 1.4)
+                font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                font.pixelSize: Style.font.caption
+                font.bold: true
+                font.letterSpacing: 1.2
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+              }
+
+              Text {
+                id: detailValue
+                text: modelData.value || "—"
+                color: Qt.darker(root.barForeground, 1.2)
+                font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                font.pixelSize: Style.font.caption
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+              }
+            }
+          }
+        }
+
+        // ---- Footer: where the light was found; click for device details ----
         Text {
           width: parent.width
           visible: root.host !== ""
           text: root.host + (root.settingHost ? " (configured)" : " (mDNS)")
+            + (root.wifiRssi !== 0
+               ? "  ·  " + Model.wifiGlyph(root.wifiRssi) + " " + root.wifiRssi + "dBm"
+               : "")
+            + (root.deviceInfo ? "  " + (root.showDetails ? "󰅃" : "󰅀") : "")
           color: Qt.darker(root.barForeground, 1.7)
           font.family: root.bar ? root.bar.fontFamily : Style.font.family
           font.pixelSize: Style.font.caption
           horizontalAlignment: Text.AlignRight
+
+          TapHandler {
+            enabled: root.deviceInfo !== null
+            onTapped: root.showDetails = !root.showDetails
+          }
+          HoverHandler {
+            enabled: root.deviceInfo !== null
+            cursorShape: Qt.PointingHandCursor
+          }
         }
       }
     }
