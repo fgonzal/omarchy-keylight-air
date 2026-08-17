@@ -53,6 +53,16 @@ omarchy bar set fgonzal.keylight-air host 192.168.1.4
 - `avahi-daemon` running, for automatic discovery (skip by setting `host`)
 - `curl` (present on Omarchy)
 
+## Future work
+
+- **Multiple lights.** The plugin currently controls a single Key Light:
+  discovery keeps the first light mDNS resolves and the panel shows one set
+  of controls. With two or more lights on the network, one is picked
+  arbitrarily (whichever avahi lists first) and the rest are ignored.
+  Supporting a set would mean keeping the discovered list, a per-light or
+  grouped control layout, and disambiguating same-model devices — out of
+  scope for now.
+
 ## Uninstall
 
 ```bash
