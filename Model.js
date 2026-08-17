@@ -59,6 +59,39 @@ function lightsPayload(patch) {
   return JSON.stringify({ lights: [light] })
 }
 
+// Parse the /elgato/accessory-info response. Returns null when the payload
+// is not the expected shape.
+function parseAccessoryInfo(text) {
+  var parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch (e) {
+    return null
+  }
+  if (!parsed || parsed.productName === undefined) return null
+  var wifi = parsed["wifi-info"] || {}
+  return {
+    displayName: String(parsed.displayName || ""),
+    productName: String(parsed.productName || ""),
+    firmware: String(parsed.firmwareVersion || "")
+      + (parsed.firmwareBuildNumber ? " (build " + parsed.firmwareBuildNumber + ")" : ""),
+    serialNumber: String(parsed.serialNumber || ""),
+    macAddress: String(parsed.macAddress || ""),
+    ssid: String(wifi.ssid || ""),
+    frequencyMHz: typeof wifi.frequencyMHz === "number" ? wifi.frequencyMHz : 0,
+    rssi: typeof wifi.rssi === "number" ? wifi.rssi : 0
+  }
+}
+
+// Nerd-font wifi-strength glyph for an RSSI reading (dBm, negative).
+function wifiGlyph(rssi) {
+  if (!rssi) return ""
+  if (rssi >= -50) return "󰤨"
+  if (rssi >= -60) return "󰤥"
+  if (rssi >= -70) return "󰤢"
+  return "󰤟"
+}
+
 // Decode avahi's \NNN decimal escapes ("Elgato\032Key\032Light\032Air").
 function decodeAvahiName(name) {
   return String(name || "").replace(/\\(\d{3})/g, function(_, code) {

@@ -21,7 +21,10 @@ Panel {
   // ---- Device state ----------------------------------------------------
 
   property string host: ""
-  property string deviceName: "Key Light Air"
+  property string mdnsName: ""
+  // Custom name stored on the light itself (accessory-info displayName).
+  property string displayName: ""
+  readonly property string deviceName: displayName || mdnsName || "Key Light Air"
   property bool reachable: false
   property bool discovering: false
   property bool lightOn: false
@@ -43,12 +46,14 @@ Panel {
     setCenterHoverRevealSuppressed(false)
     root.controller.show()
     root.refresh()
+    root.fetchInfo()
   }
 
   function openFromHotkey() {
     openedFromHotkey = true
     root.controller.show()
     root.refresh()
+    root.fetchInfo()
     Qt.callLater(function() {
       if (root.opened) setCenterHoverRevealSuppressed(true)
     })
@@ -56,6 +61,7 @@ Panel {
 
   function close() {
     setCenterHoverRevealSuppressed(false)
+    if (root.editingName) root.cancelEditingName()
     root.controller.hide()
   }
 
@@ -143,6 +149,57 @@ Panel {
     setBrightness(brightness + delta)
   }
 
+  // ---- Rename (stored on the light's flash via accessory-info) ---------
+
+  property bool editingName: false
+  property bool savingName: false
+  property int wifiRssi: 0
+
+  // Full accessory-info payload for the collapsed device-details section.
+  // Session-only UI state: reopening the shell starts collapsed again.
+  property var deviceInfo: null
+  property bool showDetails: false
+
+  function fetchInfo() {
+    if (!host || infoProc.running) return
+    infoProc.command = ["curl", "-fsS", "--max-time", "2",
+                        "http://" + host + ":9123/elgato/accessory-info"]
+    infoProc.running = true
+  }
+
+  function startEditingName() {
+    if (!reachable) return
+    editingName = true
+    savingName = false
+    Qt.callLater(function() {
+      nameField.text = root.displayName || root.mdnsName
+      nameField.selectAll()
+      nameField.forceActiveFocus()
+    })
+  }
+
+  function cancelEditingName() {
+    editingName = false
+    savingName = false
+    Qt.callLater(function() { if (keyCatcher) keyCatcher.forceActiveFocus() })
+  }
+
+  function commitName() {
+    var name = String(nameField.text || "").trim()
+    if (name === root.displayName) {
+      cancelEditingName()
+      return
+    }
+    savingName = true
+    // An empty name clears the stored displayName; the mDNS name returns.
+    renameProc.command = ["curl", "-fsS", "--max-time", "2",
+                          "-X", "PUT", "-H", "Content-Type: application/json",
+                          "-d", JSON.stringify({ displayName: name }),
+                          "http://" + host + ":9123/elgato/accessory-info"]
+    renameProc.pendingName = name
+    renameProc.running = true
+  }
+
   Timer {
     id: applyDebounce
     interval: 120
@@ -186,6 +243,36 @@ Panel {
   }
 
   Process {
+    id: infoProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var info = Model.parseAccessoryInfo(text)
+        if (info) {
+          root.displayName = info.displayName
+          root.wifiRssi = info.rssi
+          root.deviceInfo = info
+        }
+      }
+    }
+  }
+
+  Process {
+    id: renameProc
+    property string pendingName: ""
+    // The PUT returns an empty body, so success/failure comes from curl's
+    // exit code (-f maps HTTP errors to nonzero).
+    onExited: function(exitCode) {
+      root.savingName = false
+      if (exitCode === 0) {
+        root.displayName = renameProc.pendingName
+        root.cancelEditingName()
+        root.fetchInfo()
+      }
+    }
+  }
+
+  Process {
     id: discoverProc
     command: ["avahi-browse", "-rtp", "_elg._tcp"]
     stdout: StdioCollector {
@@ -195,8 +282,9 @@ Panel {
         var found = Model.parseAvahi(text)
         if (found) {
           root.host = found.address
-          if (found.name) root.deviceName = found.name
+          if (found.name) root.mdnsName = found.name
           root.fetch()
+          root.fetchInfo()
         } else {
           root.reachable = false
         }
@@ -228,12 +316,13 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(300))
+    contentWidth: panel.fittedContentWidth(Style.space(380))
     contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      blocked: root.editingName
       onReturnRequested: root.toggleLight()
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
@@ -270,6 +359,7 @@ Panel {
             spacing: Style.space(2)
 
             Text {
+              visible: !root.editingName
               text: root.deviceName
               color: root.barForeground
               font.family: root.bar ? root.bar.fontFamily : Style.font.family
@@ -277,10 +367,41 @@ Panel {
               font.bold: true
               elide: Text.ElideRight
               width: parent.width
+
+              TapHandler {
+                enabled: root.reachable
+                onTapped: root.startEditingName()
+              }
+              HoverHandler {
+                enabled: root.reachable
+                cursorShape: Qt.PointingHandCursor
+              }
+            }
+
+            TextField {
+              id: nameField
+              visible: root.editingName
+              width: parent.width
+              enabled: !root.savingName
+              placeholderText: "Light name"
+              foreground: root.barForeground
+              font.family: root.bar ? root.bar.fontFamily : Style.font.family
+
+              Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Escape) {
+                  root.cancelEditingName()
+                  event.accepted = true
+                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                  root.commitName()
+                  event.accepted = true
+                }
+              }
             }
 
             Text {
-              text: root.statusText
+              text: root.editingName
+                ? (root.savingName ? "SAVING…" : "ENTER SAVES · ESC CANCELS")
+                : root.statusText
               color: Qt.darker(root.barForeground, 1.4)
               font.family: root.bar ? root.bar.fontFamily : Style.font.family
               font.pixelSize: Style.font.caption
@@ -432,15 +553,77 @@ Panel {
           }
         }
 
-        // ---- Footer: where the light was found ----
+        // ---- Device details (collapsed behind the footer) ----
+        Column {
+          width: parent.width
+          spacing: Style.space(4)
+          visible: root.showDetails && root.deviceInfo !== null
+
+          PanelSeparator {
+            foreground: root.barForeground
+          }
+
+          Repeater {
+            model: root.deviceInfo ? [
+              { label: "FIRMWARE", value: root.deviceInfo.firmware },
+              { label: "SERIAL", value: root.deviceInfo.serialNumber },
+              { label: "MAC", value: root.deviceInfo.macAddress },
+              { label: "WI-FI", value: root.deviceInfo.ssid
+                  + (root.deviceInfo.frequencyMHz
+                     ? " · " + (root.deviceInfo.frequencyMHz / 1000) + "GHz" : "") }
+            ] : []
+
+            Item {
+              required property var modelData
+              width: parent.width
+              implicitHeight: detailValue.implicitHeight
+
+              Text {
+                text: modelData.label
+                color: Qt.darker(root.barForeground, 1.4)
+                font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                font.pixelSize: Style.font.caption
+                font.bold: true
+                font.letterSpacing: 1.2
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+              }
+
+              Text {
+                id: detailValue
+                text: modelData.value || "—"
+                color: Qt.darker(root.barForeground, 1.2)
+                font.family: root.bar ? root.bar.fontFamily : Style.font.family
+                font.pixelSize: Style.font.caption
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+              }
+            }
+          }
+        }
+
+        // ---- Footer: where the light was found; click for device details ----
         Text {
           width: parent.width
           visible: root.host !== ""
           text: root.host + (root.settingHost ? " (configured)" : " (mDNS)")
+            + (root.wifiRssi !== 0
+               ? "  ·  " + Model.wifiGlyph(root.wifiRssi) + " " + root.wifiRssi + "dBm"
+               : "")
+            + (root.deviceInfo ? "  " + (root.showDetails ? "󰅃" : "󰅀") : "")
           color: Qt.darker(root.barForeground, 1.7)
           font.family: root.bar ? root.bar.fontFamily : Style.font.family
           font.pixelSize: Style.font.caption
           horizontalAlignment: Text.AlignRight
+
+          TapHandler {
+            enabled: root.deviceInfo !== null
+            onTapped: root.showDetails = !root.showDetails
+          }
+          HoverHandler {
+            enabled: root.deviceInfo !== null
+            cursorShape: Qt.PointingHandCursor
+          }
         }
       }
     }
