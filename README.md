@@ -53,6 +53,14 @@ omarchy bar set fgonzal.keylight-air host 192.168.1.4
 - `avahi-daemon` running, for automatic discovery (skip by setting `host`)
 - `curl` (present on Omarchy)
 
+## Uninstall
+
+```bash
+omarchy plugin remove fgonzal.keylight-air
+```
+
+No daemon, no state outside the plugin directory and its `shell.json` entry.
+
 ## Future work
 
 - **Multiple lights.** The plugin currently controls a single Key Light:
@@ -62,14 +70,6 @@ omarchy bar set fgonzal.keylight-air host 192.168.1.4
   Supporting a set would mean keeping the discovered list, a per-light or
   grouped control layout, and disambiguating same-model devices — out of
   scope for now.
-
-## Uninstall
-
-```bash
-omarchy plugin remove fgonzal.keylight-air
-```
-
-No daemon, no state outside the plugin directory and its `shell.json` entry.
 
 ## License
 
