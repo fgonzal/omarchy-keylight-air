@@ -76,8 +76,13 @@ Panel {
     return false
   }
 
+  // Omarchy 4.0.6 hands plugins a bar API whose centerHoverRevealSuppressed is
+  // read-only: assigning it throws, which aborted close() before hide() and left
+  // the panel open with keyboard focus. Use the setter, as the first-party panels do.
   function setCenterHoverRevealSuppressed(value) {
-    if (root.bar && "centerHoverRevealSuppressed" in root.bar)
+    if (root.bar && typeof root.bar.setCenterHoverRevealSuppressed === "function")
+      root.bar.setCenterHoverRevealSuppressed(value)
+    else if (root.bar && "centerHoverRevealSuppressed" in root.bar)
       root.bar.centerHoverRevealSuppressed = value
   }
 
